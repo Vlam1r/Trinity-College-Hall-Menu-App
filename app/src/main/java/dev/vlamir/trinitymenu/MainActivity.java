@@ -48,10 +48,10 @@ import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final double HALL_LAT = 52.207320341840386;//52.2068962;
-    private static final double HALL_LON = 0.1178508996963501; //0.1160932;
-    private static final float HALL_RAD = 12f;
-    private static final int HALL_LOITER = 60 * 1000;
+    private static final double HALL_LAT = 52.20712; //52.2068962;
+    private static final double HALL_LON = 0.118585; //0.1160932;
+    private static final float HALL_RAD = 30f;
+    private static final int HALL_LOITER = 40 * 1000;
 
     private Calendar calendar;
     private Bundle lunch = new Bundle();
@@ -141,7 +141,9 @@ public class MainActivity extends AppCompatActivity {
                 .setRequestId("hallmenu_geofence")
                 .setCircularRegion(HALL_LAT, HALL_LON, HALL_RAD)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_ENTER)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL |
+                        Geofence.GEOFENCE_TRANSITION_ENTER |
+                        Geofence.GEOFENCE_TRANSITION_EXIT)
                 .setLoiteringDelay(HALL_LOITER)
                 .build();
         geofencingIntent = PendingIntent.getBroadcast(this, 0,
@@ -178,7 +180,8 @@ public class MainActivity extends AppCompatActivity {
     private GeofencingRequest getGeofencingRequest() {
         GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
         builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL |
-                GeofencingRequest.INITIAL_TRIGGER_ENTER);
+                GeofencingRequest.INITIAL_TRIGGER_ENTER |
+                GeofencingRequest.INITIAL_TRIGGER_EXIT);
         builder.addGeofence(hallLocation);
         return builder.build();
     }
