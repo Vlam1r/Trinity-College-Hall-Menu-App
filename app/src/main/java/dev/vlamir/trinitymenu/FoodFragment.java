@@ -1,16 +1,14 @@
 package dev.vlamir.trinitymenu;
 
 import android.os.Bundle;
+import android.text.Html;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import java.util.ArrayList;
 
 public class FoodFragment extends Fragment {
 
@@ -33,7 +31,7 @@ public class FoodFragment extends Fragment {
 
         // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_food, container, false);
-
+/*
         recyclerView = v.findViewById(R.id.recycler);
 
         // use this setting to improve performance if you know that changes
@@ -46,14 +44,19 @@ public class FoodFragment extends Fragment {
 
         // specify an adapter (see also next example)
         mAdapter = new RecyclerAdapter(parse());
-        recyclerView.setAdapter(mAdapter);
+        recyclerView.setAdapter(mAdapter);*/
 
         return v;
     }
 
     private String[] parse() {
-        String[] in = getArguments().getString("food")
-                .split("\n");
+        /*String[] in = new String[0];
+        if (getArguments() != null && getArguments().getString("food")!=null) {
+            in = getArguments().getString("food")
+                    .split("\n");
+        }
+        else return in;
+
         ArrayList<String> sol = new ArrayList<>();
         for (String s : in) {
             if (s.contains(":") && !s.startsWith("(")) {
@@ -61,17 +64,18 @@ public class FoodFragment extends Fragment {
             } else {
                 sol.set(sol.size() - 1, sol.get(sol.size() - 1).concat("\n").concat(s));
             }
-
         }
-
-
-        return (String[]) sol.toArray();
-
+        return sol.toArray(new String[0]);*/
+        return null;
     }
 
     void updateText() {
-
         /*TODO*/
-        ((TextView) getView().findViewById(R.id.food)).setText(getArguments().getString("food"));
+        ((TextView) getView().findViewById(R.id.food)).setText(
+                Html.fromHtml(getArguments().getString("food")
+                        .replace("\n", "<br>"), Html.FROM_HTML_MODE_COMPACT));
+        /*synchronized (mAdapter) {
+            mAdapter.notifyAll();
+        }*/
     }
 }

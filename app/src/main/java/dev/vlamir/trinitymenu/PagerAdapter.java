@@ -8,11 +8,11 @@ import androidx.fragment.app.FragmentStatePagerAdapter;
 
 public class PagerAdapter extends FragmentStatePagerAdapter {
 
-    Bundle lunch, dinner;
+    private Bundle lunch, dinner;
     private int mNumOfTabs;
     private FragmentManager fm;
 
-    public PagerAdapter(FragmentManager fm, int NumOfTabs, Bundle l, Bundle d) {
+    PagerAdapter(FragmentManager fm, int NumOfTabs, Bundle l, Bundle d) {
         super(fm);
         this.fm = fm;
         this.mNumOfTabs = NumOfTabs;
@@ -41,9 +41,10 @@ public class PagerAdapter extends FragmentStatePagerAdapter {
         return mNumOfTabs;
     }
 
-    public void updateFragments() {
+    void updateFragments() {
         for (Fragment f : fm.getFragments()) {
-            ((FoodFragment) f).updateText();
+            if (f.getClass() == FoodFragment.class)
+                ((FoodFragment) f).updateText();
         }
     }
 }

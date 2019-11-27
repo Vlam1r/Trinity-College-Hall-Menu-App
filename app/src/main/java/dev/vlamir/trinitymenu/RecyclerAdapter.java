@@ -1,7 +1,6 @@
 package dev.vlamir.trinitymenu;
 
 import android.text.Html;
-import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
@@ -13,7 +12,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     private String[] mDataset;
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public RecyclerAdapter(String[] myDataset) {
+    RecyclerAdapter(String[] myDataset) {
         mDataset = myDataset;
     }
 
@@ -22,10 +21,11 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     public RecyclerAdapter.MyViewHolder onCreateViewHolder(ViewGroup parent,
                                                            int viewType) {
         // create a new view
-        TextView v = (TextView) LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.text_view, parent, false);
-        MyViewHolder vh = new MyViewHolder(v);
-        return vh;
+        //TextView v = (TextView) LayoutInflater.from(parent.getContext())
+        //        .inflate(R.layout.text_view, parent, false);
+        //MyViewHolder vh = new MyViewHolder(v);
+        // TODO
+        return null;//vh;
     }
 
     // Replace the contents of a view (invoked by the layout manager)
@@ -46,11 +46,11 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     // Provide a reference to the views for each data item
     // Complex data items may need more than one view per item, and
     // you provide access to all the views for a data item in a view holder
-    public static class MyViewHolder extends RecyclerView.ViewHolder {
+    static class MyViewHolder extends RecyclerView.ViewHolder {
         // each data item is just a string in this case
-        public TextView textView;
+        TextView textView;
 
-        public MyViewHolder(TextView v) {
+        MyViewHolder(TextView v) {
             super(v);
             textView = v;
         }

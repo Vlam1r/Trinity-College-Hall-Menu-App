@@ -1,17 +1,30 @@
 package dev.vlamir.trinitymenu;
 
 import android.app.DatePickerDialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.icu.util.Calendar;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.DatePicker;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.viewpager.widget.ViewPager;
 
+import com.google.android.gms.location.Geofence;
+import com.google.android.gms.location.GeofencingClient;
+import com.google.android.gms.location.GeofencingRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -24,11 +37,21 @@ import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final double HALL_LAT = 52.207320341840386;//52.2068962;
+    private static final double HALL_LON = 0.1178508996963501; //0.1160932;
+    private static final float HALL_RAD = 12f;
+    private static final int HALL_LOITER = 60 * 1000;
 
     private Calendar calendar;
     private Bundle lunch = new Bundle();
@@ -36,15 +59,48 @@ public class MainActivity extends AppCompatActivity {
     private URL url;
     private PagerAdapter adapter;
 
+    private GeofencingClient geofencingClient;
+    private Geofence hallLocation;
+    private PendingIntent geofencingIntent;
+
+    private ProgressBar pBar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        createNotificationChannel();
 
         Button selectDate = findViewById(R.id.dateselect);
         calendar = Calendar.getInstance();
 
+        //PROGRESS BAR
+        pBar = findViewById(R.id.progressBar);
+
+        //CONFIGURE TABS
+        TabLayout tabLayout = findViewById(R.id.meals);
+        final ViewPager viewPager = findViewById(R.id.view_pager);
+        adapter = new PagerAdapter
+                (getSupportFragmentManager(), tabLayout.getTabCount(), lunch, dinner);
+        viewPager.setAdapter(adapter);
+        viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                viewPager.setCurrentItem(tab.getPosition());
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
+
+        //CONFIGURE DATE PICKER
         selectDate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -70,31 +126,65 @@ public class MainActivity extends AppCompatActivity {
 
         updateMeals();
 
-        TabLayout tabLayout = findViewById(R.id.meals);
-        final ViewPager viewPager = findViewById(R.id.view_pager);
-        adapter = new PagerAdapter
-                (getSupportFragmentManager(), tabLayout.getTabCount(), lunch, dinner);
-        viewPager.setAdapter(adapter);
-        viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                viewPager.setCurrentItem(tab.getPosition());
-            }
+        // SELECT LUNCH OR DINNER BASED ON TIME OF DAY
+        if (Calendar.getInstance().get(Calendar.HOUR_OF_DAY) > 13) {
+            Objects.requireNonNull(tabLayout.getTabAt(1)).select();
+        }
 
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
+        //CONFIGURE GEOFENCER
+        ActivityCompat.requestPermissions(this, new String[]{ACCESS_FINE_LOCATION,
+                ACCESS_COARSE_LOCATION,
+                ACCESS_BACKGROUND_LOCATION}, 0);
 
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
-        });
+        geofencingClient = LocationServices.getGeofencingClient(this);
+        hallLocation = new Geofence.Builder()
+                .setRequestId("hallmenu_geofence")
+                .setCircularRegion(HALL_LAT, HALL_LON, HALL_RAD)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_ENTER)
+                .setLoiteringDelay(HALL_LOITER)
+                .build();
+        geofencingIntent = PendingIntent.getBroadcast(this, 0,
+                new Intent(this, GeofenceReceiver.class),
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        geofencingClient.addGeofences(getGeofencingRequest(), geofencingIntent)
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(getApplicationContext(),
+                                "Failed to make geofence", Toast.LENGTH_SHORT)
+                                .show();
+                    }
+                });
+
+    }
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "notif";
+            String description = "hall channel";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel("notif", name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private GeofencingRequest getGeofencingRequest() {
+        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
+        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL |
+                GeofencingRequest.INITIAL_TRIGGER_ENTER);
+        builder.addGeofence(hallLocation);
+        return builder.build();
     }
 
     private void updateMeals() {
 
-        Toast.makeText(getApplicationContext(), "Fetching data", Toast.LENGTH_SHORT).show();
         try {
             url = new URL("https://vlamir.dynu.net/response/hallmenu.php?date=" +
                     calendar.get(Calendar.YEAR) + "-" +
@@ -104,7 +194,10 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "Error Invalid URL", Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
-
+        lunch.putString("food", "");
+        dinner.putString("food", "");
+        pBar.setVisibility(View.VISIBLE);
+        adapter.updateFragments();
         new HTTPGetJson(this).execute();
 
     }
@@ -120,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected String doInBackground(Void... params) {
-            return getJSON(activityReference.get().url, 5000);
+            return getJSON(activityReference.get().url);
         }
 
         @Override
@@ -128,10 +221,18 @@ public class MainActivity extends AppCompatActivity {
 
             // get a reference to the activity if it is still there
             MainActivity activity = activityReference.get();
+
             if (activity == null || activity.isFinishing()) return;
 
-            if (result.contains("Meals for today")) {
-                Toast.makeText(activityReference.get().getApplicationContext(), result, Toast.LENGTH_SHORT).show();
+            activity.pBar.setVisibility(View.GONE);
+
+            if (result == null) {
+                Toast.makeText(activity.getApplicationContext(),
+                        "Error connecting to server", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (result.contains("missing from the database")) {
+                Toast.makeText(activity.getApplicationContext(), result, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -139,13 +240,13 @@ public class MainActivity extends AppCompatActivity {
             JsonObject json = new JsonParser().parse(result).getAsJsonObject();
 
             Meal meal = new Gson().fromJson(json, Meal.class);
-            activityReference.get().lunch.putString("food", meal.getLunch());
-            activityReference.get().dinner.putString("food", meal.getDinner());
 
-            activityReference.get().adapter.updateFragments();
+            activity.lunch.putString("food", meal.getLunch());
+            activity.dinner.putString("food", meal.getDinner());
+            activity.adapter.updateFragments();
         }
 
-        private String getJSON(URL u, int timeout) {
+        private String getJSON(URL u) {
             HttpURLConnection c = null;
             try {
                 c = (HttpURLConnection) u.openConnection();
@@ -153,8 +254,8 @@ public class MainActivity extends AppCompatActivity {
                 c.setRequestProperty("Content-length", "0");
                 c.setUseCaches(false);
                 c.setAllowUserInteraction(false);
-                c.setConnectTimeout(timeout);
-                c.setReadTimeout(timeout);
+                c.setConnectTimeout(5000);
+                c.setReadTimeout(5000);
                 c.connect();
                 int status = c.getResponseCode();
 
