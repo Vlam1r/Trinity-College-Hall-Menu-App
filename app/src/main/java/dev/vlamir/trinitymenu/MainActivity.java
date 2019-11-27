@@ -127,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
         updateMeals();
 
         // SELECT LUNCH OR DINNER BASED ON TIME OF DAY
-        if (Calendar.getInstance().get(Calendar.HOUR_OF_DAY) > 13) {
+        if (Calendar.getInstance().getTime().after(Constants.LUNCH_END)) {
             Objects.requireNonNull(tabLayout.getTabAt(1)).select();
         }
 
