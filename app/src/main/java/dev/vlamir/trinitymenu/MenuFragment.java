@@ -7,7 +7,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.icu.util.Calendar;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -32,36 +31,29 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import static dev.vlamir.trinitymenu.Constants.HALL_LAT;
+import static dev.vlamir.trinitymenu.Constants.HALL_LOITER;
+import static dev.vlamir.trinitymenu.Constants.HALL_LON;
+import static dev.vlamir.trinitymenu.Constants.HALL_RAD;
 
 
 public class MenuFragment extends Fragment {
 
-    private static final double HALL_LAT = 52.20712; //52.2068962;
-    private static final double HALL_LON = 0.118585; //0.1160932;
-    private static final float HALL_RAD = 30f;
-    private static final int HALL_LOITER = 40 * 1000;
+    //private static final double HALL_LAT = WOLF_LAT;
+    //private static final double HALL_LON = WOLF_LON;
 
     private Calendar calendar;
-    private Bundle lunch = new Bundle();
-    private Bundle dinner = new Bundle();
+    private final Bundle lunch = new Bundle();
+    private final Bundle dinner = new Bundle();
     private URL url;
     private PagerAdapter adapter;
 
-    private GeofencingClient geofencingClient;
-    private Geofence hallLocation;
-    private PendingIntent geofencingIntent;
-
     private ProgressBar pBar;
+    private TabLayout tabLayout;
 
     private View v;
 
@@ -70,7 +62,7 @@ public class MenuFragment extends Fragment {
         super.onCreate(savedInstanceState);
     }
 
-    public void initialize() {
+    private void initialize() {
 
         //final View v = this.v;
 
@@ -82,27 +74,7 @@ public class MenuFragment extends Fragment {
         //PROGRESS BAR
         pBar = v.findViewById(R.id.progressBar);
 
-        //CONFIGURE TABS
-        TabLayout tabLayout = v.findViewById(R.id.meals);
-        final ViewPager viewPager = v.findViewById(R.id.view_pager);
-        adapter = new PagerAdapter
-                (getFragmentManager(), tabLayout.getTabCount(), lunch, dinner);
-        viewPager.setAdapter(adapter);
-        viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                viewPager.setCurrentItem(tab.getPosition());
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
-        });
+        initTabs();
 
         //CONFIGURE DATE PICKER
         selectDate.setOnClickListener(new View.OnClickListener() {
@@ -131,35 +103,35 @@ public class MenuFragment extends Fragment {
         updateMeals();
 
         // SELECT LUNCH OR DINNER BASED ON TIME OF DAY
-        if (Calendar.getInstance().getTime().after(Constants.LUNCH_END)) {
+        if (Constants.Now().after(Constants.LUNCH_END)) {
             Objects.requireNonNull(tabLayout.getTabAt(1)).select();
         }
 
-        //CONFIGURE GEOFENCE
+        initGeofence();
+    }
 
-        geofencingClient = LocationServices.getGeofencingClient(v.getContext());
-        hallLocation = new Geofence.Builder()
-                .setRequestId("hallmenu_geofence")
-                .setCircularRegion(HALL_LAT, HALL_LON, HALL_RAD)
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL |
-                        Geofence.GEOFENCE_TRANSITION_ENTER |
-                        Geofence.GEOFENCE_TRANSITION_EXIT)
-                .setLoiteringDelay(HALL_LOITER)
-                .build();
-        geofencingIntent = PendingIntent.getBroadcast(v.getContext(), 0,
-                new Intent(v.getContext(), GeofenceReceiver.class),
-                PendingIntent.FLAG_UPDATE_CURRENT);
-        geofencingClient.addGeofences(getGeofencingRequest(), geofencingIntent)
-                .addOnFailureListener(getActivity(), new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(v.getContext(),
-                                "Failed to make geofence", Toast.LENGTH_SHORT)
-                                .show();
-                    }
-                });
+    private void initTabs() {
 
+        tabLayout = v.findViewById(R.id.meals);
+        final ViewPager viewPager = v.findViewById(R.id.view_pager);
+        adapter = new PagerAdapter
+                (getFragmentManager(), tabLayout.getTabCount(), lunch, dinner);
+        viewPager.setAdapter(adapter);
+        viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                viewPager.setCurrentItem(tab.getPosition());
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
     }
 
     @Override
@@ -184,18 +156,42 @@ public class MenuFragment extends Fragment {
             // Register the channel with the system; you can't change the importance
             // or other notification behaviors after this
             NotificationManager notificationManager =
-                    getActivity().getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
+                    Objects.requireNonNull(getActivity()).getSystemService(NotificationManager.class);
+            Objects.requireNonNull(notificationManager).createNotificationChannel(channel);
         }
     }
 
-    private GeofencingRequest getGeofencingRequest() {
+    private void initGeofence() {
+
+        GeofencingClient geofencingClient = LocationServices.getGeofencingClient(v.getContext());
+
+        Geofence hallLocation = new Geofence.Builder()
+                .setRequestId("hallmenu_geofence")
+                .setCircularRegion(HALL_LAT, HALL_LON, HALL_RAD)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL |
+                        Geofence.GEOFENCE_TRANSITION_ENTER |
+                        Geofence.GEOFENCE_TRANSITION_EXIT)
+                .setLoiteringDelay(HALL_LOITER)
+                .build();
         GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
         builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL |
                 GeofencingRequest.INITIAL_TRIGGER_ENTER |
                 GeofencingRequest.INITIAL_TRIGGER_EXIT);
         builder.addGeofence(hallLocation);
-        return builder.build();
+
+        PendingIntent geofencingIntent = PendingIntent.getBroadcast(v.getContext(), 0,
+                new Intent(v.getContext(), GeofenceReceiver.class),
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        geofencingClient.addGeofences(builder.build(), geofencingIntent)
+                .addOnFailureListener(Objects.requireNonNull(getActivity()), new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(v.getContext(),
+                                "Failed to make geofence", Toast.LENGTH_SHORT)
+                                .show();
+                    }
+                });
     }
 
     private void updateMeals() {
@@ -217,89 +213,47 @@ public class MenuFragment extends Fragment {
 
     }
 
-    private static class HTTPGetJson extends AsyncTask<Void, Void, String> {
+    private static class HTTPGetJson extends dev.vlamir.trinitymenu.HTTPGetJson {
 
-        private WeakReference<MenuFragment> activityReference;
 
-        // only retain a weak reference to the activity
+        final MenuFragment fragment;
+
         HTTPGetJson(MenuFragment context) {
-            activityReference = new WeakReference<>(context);
-        }
-
-        @Override
-        protected String doInBackground(Void... params) {
-            return getJSON(activityReference.get().url);
+            super(context);
+            fragment = activityReference.get();
+            url = fragment.url;
         }
 
         @Override
         protected void onPostExecute(String result) {
+            {
+                // get a reference to the activity if it is still there
+                Activity activity = fragment.getActivity();
 
-            // get a reference to the activity if it is still there
-            MenuFragment fragment = activityReference.get();
-            Activity activity = fragment.getActivity();
+                if (activity == null || activity.isFinishing()) return;
 
-            if (activity == null || activity.isFinishing()) return;
+                fragment.pBar.setVisibility(View.GONE);
 
-            fragment.pBar.setVisibility(View.GONE);
-
-            if (result == null) {
-                Toast.makeText(activity.getApplicationContext(),
-                        "Error connecting to server", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (result.contains("missing from the database")) {
-                Toast.makeText(activity.getApplicationContext(), result, Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-
-            JsonObject json = new JsonParser().parse(result).getAsJsonObject();
-
-            Meal meal = new Gson().fromJson(json, Meal.class);
-
-            fragment.lunch.putString("food", meal.getLunch());
-            fragment.dinner.putString("food", meal.getDinner());
-            fragment.adapter.updateFragments();
-        }
-
-        private String getJSON(URL u) {
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection) u.openConnection();
-                c.setRequestMethod("GET");
-                c.setRequestProperty("Content-length", "0");
-                c.setUseCaches(false);
-                c.setAllowUserInteraction(false);
-                c.setConnectTimeout(5000);
-                c.setReadTimeout(5000);
-                c.connect();
-                int status = c.getResponseCode();
-
-                switch (status) {
-                    case 200:
-                    case 201:
-                        BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()));
-                        StringBuilder sb = new StringBuilder();
-                        String line;
-                        while ((line = br.readLine()) != null) {
-                            sb.append(line).append("\n");
-                        }
-                        br.close();
-                        return sb.toString();
+                if (result == null) {
+                    Toast.makeText(activity.getApplicationContext(),
+                            "Error connecting to server", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (result.contains("missing from the database")) {
+                    Toast.makeText(activity.getApplicationContext(), result, Toast.LENGTH_SHORT).show();
+                    return;
                 }
 
-            } catch (IOException ex) {
-                Logger.getGlobal().log(Level.SEVERE, null, ex);
-            } finally {
-                if (c != null) {
-                    try {
-                        c.disconnect();
-                    } catch (Exception ex) {
-                        Logger.getGlobal().log(Level.SEVERE, null, ex);
-                    }
-                }
+
+                JsonObject json = new JsonParser().parse(result).getAsJsonObject();
+
+                Meal meal = new Gson().fromJson(json, Meal.class);
+
+                fragment.lunch.putString("food", meal.getLunch());
+                fragment.dinner.putString("food", meal.getDinner());
+                fragment.adapter.updateFragments();
             }
-            return null;
         }
+
     }
 }

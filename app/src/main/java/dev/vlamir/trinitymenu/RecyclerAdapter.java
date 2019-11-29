@@ -4,12 +4,13 @@ import android.text.Html;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import static android.text.Html.fromHtml;
 
 public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyViewHolder> {
-    private String[] mDataset;
+    private final String[] mDataset;
 
     // Provide a suitable constructor (depends on the kind of dataset)
     RecyclerAdapter(String[] myDataset) {
@@ -17,8 +18,9 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     }
 
     // Create new views (invoked by the layout manager)
+    @NonNull
     @Override
-    public RecyclerAdapter.MyViewHolder onCreateViewHolder(ViewGroup parent,
+    public RecyclerAdapter.MyViewHolder onCreateViewHolder(@NonNull ViewGroup parent,
                                                            int viewType) {
         // create a new view
         //TextView v = (TextView) LayoutInflater.from(parent.getContext())
@@ -48,7 +50,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     // you provide access to all the views for a data item in a view holder
     static class MyViewHolder extends RecyclerView.ViewHolder {
         // each data item is just a string in this case
-        TextView textView;
+        final TextView textView;
 
         MyViewHolder(TextView v) {
             super(v);

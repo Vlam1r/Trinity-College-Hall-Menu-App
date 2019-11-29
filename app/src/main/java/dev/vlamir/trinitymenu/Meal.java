@@ -1,6 +1,6 @@
 package dev.vlamir.trinitymenu;
 
-public class Meal {
+class Meal {
     private String lunch;
     private String dinner;
 
