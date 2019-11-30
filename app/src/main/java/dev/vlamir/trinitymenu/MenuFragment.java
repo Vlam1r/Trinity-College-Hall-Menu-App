@@ -4,8 +4,6 @@ import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Intent;
 import android.icu.util.Calendar;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,15 +15,9 @@ import android.widget.DatePicker;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager.widget.ViewPager;
 
-import com.google.android.gms.location.Geofence;
-import com.google.android.gms.location.GeofencingClient;
-import com.google.android.gms.location.GeofencingRequest;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -34,11 +26,6 @@ import com.google.gson.JsonParser;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
-
-import static dev.vlamir.trinitymenu.Constants.HALL_LAT;
-import static dev.vlamir.trinitymenu.Constants.HALL_LOITER;
-import static dev.vlamir.trinitymenu.Constants.HALL_LON;
-import static dev.vlamir.trinitymenu.Constants.HALL_RAD;
 
 
 public class MenuFragment extends Fragment {
@@ -63,8 +50,6 @@ public class MenuFragment extends Fragment {
     }
 
     private void initialize() {
-
-        //final View v = this.v;
 
         createNotificationChannel();
 
@@ -107,7 +92,6 @@ public class MenuFragment extends Fragment {
             Objects.requireNonNull(tabLayout.getTabAt(1)).select();
         }
 
-        initGeofence();
     }
 
     private void initTabs() {
@@ -159,39 +143,6 @@ public class MenuFragment extends Fragment {
                     Objects.requireNonNull(getActivity()).getSystemService(NotificationManager.class);
             Objects.requireNonNull(notificationManager).createNotificationChannel(channel);
         }
-    }
-
-    private void initGeofence() {
-
-        GeofencingClient geofencingClient = LocationServices.getGeofencingClient(v.getContext());
-
-        Geofence hallLocation = new Geofence.Builder()
-                .setRequestId("hallmenu_geofence")
-                .setCircularRegion(HALL_LAT, HALL_LON, HALL_RAD)
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL |
-                        Geofence.GEOFENCE_TRANSITION_ENTER |
-                        Geofence.GEOFENCE_TRANSITION_EXIT)
-                .setLoiteringDelay(HALL_LOITER)
-                .build();
-        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
-        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL |
-                GeofencingRequest.INITIAL_TRIGGER_ENTER |
-                GeofencingRequest.INITIAL_TRIGGER_EXIT);
-        builder.addGeofence(hallLocation);
-
-        PendingIntent geofencingIntent = PendingIntent.getBroadcast(v.getContext(), 0,
-                new Intent(v.getContext(), GeofenceReceiver.class),
-                PendingIntent.FLAG_UPDATE_CURRENT);
-        geofencingClient.addGeofences(builder.build(), geofencingIntent)
-                .addOnFailureListener(Objects.requireNonNull(getActivity()), new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(v.getContext(),
-                                "Failed to make geofence", Toast.LENGTH_SHORT)
-                                .show();
-                    }
-                });
     }
 
     private void updateMeals() {
