@@ -11,4 +11,5 @@ android:
 
 
 script:
+  - yes | sdkmanager --licenses
   - ./gradlew build
