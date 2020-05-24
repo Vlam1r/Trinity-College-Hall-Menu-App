@@ -25,6 +25,7 @@ import com.google.gson.JsonParser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.LocalTime;
 import java.util.Objects;
 
 
@@ -88,7 +89,7 @@ public class MenuFragment extends Fragment {
         updateMeals();
 
         // SELECT LUNCH OR DINNER BASED ON TIME OF DAY
-        if (Constants.Now().after(Constants.LUNCH_END)) {
+        if (LocalTime.now().isAfter(Constants.LUNCH_END)) {
             Objects.requireNonNull(tabLayout.getTabAt(1)).select();
         }
 

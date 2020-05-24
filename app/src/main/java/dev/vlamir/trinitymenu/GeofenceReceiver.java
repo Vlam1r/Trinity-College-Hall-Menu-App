@@ -11,8 +11,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 
-import java.util.Calendar;
-import java.util.Date;
+import java.time.LocalTime;
 
 import static dev.vlamir.trinitymenu.Constants.DEBUG;
 import static dev.vlamir.trinitymenu.Constants.DINNER_BEGIN;
@@ -22,6 +21,7 @@ import static dev.vlamir.trinitymenu.Constants.LUNCH_END;
 
 
 public class GeofenceReceiver extends BroadcastReceiver {
+
     @Override
     public void onReceive(Context context, Intent intent) {
 
@@ -31,9 +31,9 @@ public class GeofenceReceiver extends BroadcastReceiver {
             return;
         }
 
-        Date now = Calendar.getInstance().getTime();
-        if (!DEBUG && ((now.after(LUNCH_BEGIN) && now.before(LUNCH_END)) ||
-                (now.after(DINNER_BEGIN) && now.after(DINNER_END)))) return;
+        LocalTime now = LocalTime.now();
+        if (!DEBUG && ((now.isAfter(LUNCH_BEGIN) && now.isBefore(LUNCH_END)) ||
+                (now.isAfter(DINNER_BEGIN) && now.isBefore(DINNER_END)))) return;
 
         // Get the transition type.
         int geofenceTransition = geofencingEvent.getGeofenceTransition();
